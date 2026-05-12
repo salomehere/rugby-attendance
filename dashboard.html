@@ -184,8 +184,9 @@
       var att = res[1];
 
       // Filter both using Event Name directly
-      var filtEvents = events.filter(function(e) { return included(e['Event Name']); });
-      var filtAtt = att.filter(function(r) { return included(r['Event Name']); });
+      var seasonStart = new Date('2025-09-04');
+      var filtEvents = events.filter(function(e) { return included(e['Event Name']) && new Date(e['Date']) >= seasonStart; });
+      var filtAtt = att.filter(function(r) { return included(r['Event Name']) && new Date(r['Date']) >= seasonStart; });
 
       allEvents = filtEvents;
       render(filtEvents, filtAtt);
