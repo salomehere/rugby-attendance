@@ -364,19 +364,19 @@
     <!-- SCORECARDS -->
     <div class="scorecards">
       <div class="scorecard">
-        <div class="scorecard-label">Avg Attendance</div>
+        <div class="scorecard-label">Overall Avg</div>
         <div class="scorecard-value" id="sc-avg">—</div>
-        <div class="scorecard-sub">across all events</div>
+        <div class="scorecard-sub">games &amp; training</div>
       </div>
       <div class="scorecard">
-        <div class="scorecard-label">Total Events</div>
-        <div class="scorecard-value" id="sc-events">—</div>
-        <div class="scorecard-sub">in selected period</div>
+        <div class="scorecard-label">Avg Games</div>
+        <div class="scorecard-value green" id="sc-games">—</div>
+        <div class="scorecard-sub">match attendance</div>
       </div>
       <div class="scorecard">
-        <div class="scorecard-label">Top Attendance</div>
-        <div class="scorecard-value green" id="sc-top">—</div>
-        <div class="scorecard-sub" id="sc-top-name">best event</div>
+        <div class="scorecard-label">Avg Training</div>
+        <div class="scorecard-value" style="color:#5b8dee" id="sc-training">—</div>
+        <div class="scorecard-sub">training attendance</div>
       </div>
       <div class="scorecard">
         <div class="scorecard-label">Squad Size</div>
@@ -437,15 +437,21 @@
 
   // ─── FETCH DATA ───────────────────────────────────────────────────────────
   async function fetchSheet(sheetName) {
-    const url = `https://docs.google.com/spreadsheets/d/${SHEET_ID}/gviz/tq?tqx=out:csv&sheet=${encodeURIComponent(sheetName)}`;
+    const url = `https://docs.google.com/spreadsheets/d/${SHEET_ID}/export?format=csv&sheet=${encodeURIComponent(sheetName)}`;
     const res = await fetch(url);
-    if (!res.ok) throw new Error(`Failed to fetch ${sheetName} sheet`);
+    if (!res.ok) throw new Error(`Failed to fetch ${sheetName} sheet (status ${res.status})`);
     const text = await res.text();
     return Papa.parse(text, { header: true, skipEmptyLines: true }).data;
   }
 
+  // ─── HELPERS ──────────────────────────────────────────────────────────────
+  function isGame(e) { return (e['Event Name'] || '').includes('–'); }
+  function isTraining(e) { return (e['Event Name'] || '').toLowerCase().includes('training'); }
+  function isIncluded(e) { return isGame(e) || isTraining(e); }
+
   // ─── MAIN ─────────────────────────────────────────────────────────────────
   let allEvents = [];
+  let allAttendance = [];
 
   async function init() {
     if (SHEET_ID === 'YOUR_SHEET_ID') {
@@ -461,8 +467,14 @@
         fetchSheet(ATTENDANCE_SHEET),
       ]);
 
-      allEvents = events;
-      render(events, attendance);
+      // Filter to games and training only
+      const filtered = events.filter(isIncluded);
+      const filteredIds = new Set(filtered.map(e => e['Event ID']));
+      const filteredAtt = attendance.filter(r => filteredIds.has(r['Event ID']));
+
+      allEvents = filtered;
+      allAttendance = filteredAtt;
+      render(filtered, filteredAtt);
 
       document.getElementById('status').style.display = 'none';
       document.getElementById('dashboard').style.display = 'block';
@@ -476,19 +488,24 @@
     // Sort events by date descending
     events.sort((a, b) => new Date(b['Date']) - new Date(a['Date']));
 
+    const games = events.filter(isGame);
+    const training = events.filter(isTraining);
+
     // ── Scorecards ──
     const avgs = events.map(e => parseFloat(e['Attendance %'])).filter(n => !isNaN(n));
     const avg = avgs.length ? (avgs.reduce((a,b) => a+b, 0) / avgs.length).toFixed(1) : '—';
     document.getElementById('sc-avg').textContent = avg !== '—' ? avg + '%' : '—';
     document.getElementById('sc-events').textContent = events.length;
 
-    const topEvent = events.reduce((best, e) => {
-      return parseFloat(e['Attendance %']) > parseFloat(best['Attendance %'] || 0) ? e : best;
-    }, {});
-    document.getElementById('sc-top').textContent = topEvent['Attendance %'] ? topEvent['Attendance %'] + '%' : '—';
-    document.getElementById('sc-top-name').textContent = topEvent['Event Name'] || '';
+    const gameAvgs = games.map(e => parseFloat(e['Attendance %'])).filter(n => !isNaN(n));
+    const gameAvg = gameAvgs.length ? (gameAvgs.reduce((a,b) => a+b, 0) / gameAvgs.length).toFixed(1) : '—';
+    document.getElementById('sc-games').textContent = gameAvg !== '—' ? gameAvg + '%' : '—';
 
-    // Member count from attendance sheet
+    const trainAvgs = training.map(e => parseFloat(e['Attendance %'])).filter(n => !isNaN(n));
+    const trainAvg = trainAvgs.length ? (trainAvgs.reduce((a,b) => a+b, 0) / trainAvgs.length).toFixed(1) : '—';
+    document.getElementById('sc-training').textContent = trainAvg !== '—' ? trainAvg + '%' : '—';
+
+    // Member count
     const members = [...new Set(attendance.map(r => r['Member Name']).filter(Boolean))];
     document.getElementById('sc-squad').textContent = members.length;
 
@@ -499,7 +516,6 @@
     // ── Event bars ──
     const bars = document.getElementById('event-bars');
     const recentEvents = events.slice(0, 20);
-    const maxTotal = Math.max(...recentEvents.map(e => parseInt(e['Total Invited']) || 1));
 
     bars.innerHTML = recentEvents.map(e => {
       const accepted = parseInt(e['Accepted']) || 0;
@@ -511,11 +527,13 @@
       const dW = (declined/total*100).toFixed(1);
       const nW = (noResp/total*100).toFixed(1);
       const date = e['Date'] ? new Date(e['Date']).toLocaleDateString('en-GB', {day:'numeric', month:'short'}) : '';
+      const tag = isGame(e) ? '<span style="font-size:0.6rem;background:#1a3d2b;color:#27ae60;padding:0.1em 0.4em;border-radius:2px;margin-left:4px">GAME</span>'
+                            : '<span style="font-size:0.6rem;background:#1a2040;color:#5b8dee;padding:0.1em 0.4em;border-radius:2px;margin-left:4px">TRAINING</span>';
 
       return `
         <div class="bar-row">
           <div class="bar-label">
-            ${e['Event Name'] || 'Event'}
+            ${e['Event Name'] || 'Event'}${tag}
             <span class="bar-date">${date}</span>
           </div>
           <div class="bar-track">
@@ -527,28 +545,54 @@
         </div>`;
     }).join('');
 
-    // ── Member attendance ──
+    // ── Member attendance — split by games and training ──
     const memberGrid = document.getElementById('member-grid');
-    const memberAccepted = {};
-    const memberTotal = {};
+    const gameIds = new Set(games.map(e => e['Event ID']));
+    const trainingIds = new Set(training.map(e => e['Event ID']));
+
+    const stats = {};
     attendance.forEach(r => {
       const name = r['Member Name'];
+      const eid = r['Event ID'];
       if (!name) return;
-      memberTotal[name] = (memberTotal[name] || 0) + 1;
-      if (r['Response'] === 'Accepted') memberAccepted[name] = (memberAccepted[name] || 0) + 1;
+      if (!stats[name]) stats[name] = { gAcc: 0, gTot: 0, tAcc: 0, tTot: 0 };
+      if (gameIds.has(eid)) {
+        stats[name].gTot++;
+        if (r['Response'] === 'Accepted') stats[name].gAcc++;
+      }
+      if (trainingIds.has(eid)) {
+        stats[name].tTot++;
+        if (r['Response'] === 'Accepted') stats[name].tAcc++;
+      }
     });
 
-    const memberStats = Object.keys(memberTotal).map(name => ({
-      name,
-      pct: Math.round((memberAccepted[name] || 0) / memberTotal[name] * 100)
-    })).sort((a, b) => b.pct - a.pct);
+    const memberStats = Object.keys(stats).map(name => {
+      const s = stats[name];
+      const gPct = s.gTot ? Math.round(s.gAcc / s.gTot * 100) : null;
+      const tPct = s.tTot ? Math.round(s.tAcc / s.tTot * 100) : null;
+      return { name, gPct, tPct };
+    }).sort((a, b) => {
+      const aAvg = ((a.gPct ?? 0) + (a.tPct ?? 0)) / 2;
+      const bAvg = ((b.gPct ?? 0) + (b.tPct ?? 0)) / 2;
+      return bAvg - aAvg;
+    });
 
     memberGrid.innerHTML = memberStats.map(m => {
-      const cls = m.pct >= 70 ? 'high' : m.pct < 40 ? 'low' : '';
+      const gCls = m.gPct === null ? '' : m.gPct >= 70 ? 'high' : m.gPct < 40 ? 'low' : '';
+      const tCls = m.tPct === null ? '' : m.tPct >= 70 ? 'high' : m.tPct < 40 ? 'low' : '';
       return `
         <div class="member-card">
           <div class="member-name">${m.name}</div>
-          <div class="member-pct ${cls}">${m.pct}%</div>
+          <div style="display:flex;gap:0.8rem;align-items:center">
+            <div style="text-align:center">
+              <div style="font-size:0.55rem;color:var(--text-dim);letter-spacing:0.05em;margin-bottom:2px">GAMES</div>
+              <div class="member-pct ${gCls}">${m.gPct !== null ? m.gPct + '%' : '—'}</div>
+            </div>
+            <div style="text-align:center">
+              <div style="font-size:0.55rem;color:var(--text-dim);letter-spacing:0.05em;margin-bottom:2px">TRAINING</div>
+              <div class="member-pct ${tCls}" style="color:#5b8dee">${m.tPct !== null ? m.tPct + '%' : '—'}</div>
+            </div>
+          </div>
         </div>`;
     }).join('');
 
@@ -562,9 +606,10 @@
       const pct = parseFloat(e['Attendance %']) || 0;
       const pillCls = pct >= 70 ? 'green' : pct < 40 ? 'red' : 'grey';
       const date = e['Date'] ? new Date(e['Date']).toLocaleDateString('en-GB', {day:'numeric', month:'short', year:'numeric'}) : '';
+      const typeTag = isGame(e) ? '<span class="pill green">Game</span>' : '<span class="pill" style="background:#1a2040;color:#5b8dee">Training</span>';
       return `
         <tr>
-          <td>${e['Event Name'] || '—'}</td>
+          <td>${e['Event Name'] || '—'} ${typeTag}</td>
           <td>${date}</td>
           <td>${e['Location'] || '—'}</td>
           <td>${e['Accepted'] || 0}</td>
