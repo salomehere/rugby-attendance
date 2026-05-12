@@ -495,7 +495,7 @@
     const avgs = events.map(e => parseFloat(e['Attendance %'])).filter(n => !isNaN(n));
     const avg = avgs.length ? (avgs.reduce((a,b) => a+b, 0) / avgs.length).toFixed(1) : '—';
     document.getElementById('sc-avg').textContent = avg !== '—' ? avg + '%' : '—';
-    document.getElementById('sc-events').textContent = events.length;
+    if (document.getElementById('sc-events')) document.getElementById('sc-events').textContent = events.length;
 
     const gameAvgs = games.map(e => parseFloat(e['Attendance %'])).filter(n => !isNaN(n));
     const gameAvg = gameAvgs.length ? (gameAvgs.reduce((a,b) => a+b, 0) / gameAvgs.length).toFixed(1) : '—';
