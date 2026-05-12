@@ -1,0 +1,587 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Cheltenham CS — Attendance</title>
+  <link href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=DM+Sans:wght@300;400;500;600&display=swap" rel="stylesheet">
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/PapaParse/5.4.1/papaparse.min.js"></script>
+  <style>
+    :root {
+      --black: #0a0a0a;
+      --white: #f5f2eb;
+      --gold: #c9a84c;
+      --gold-dim: #8a6f2e;
+      --red: #c0392b;
+      --green: #27ae60;
+      --grey: #2a2a2a;
+      --mid: #444;
+      --text-dim: #888;
+    }
+
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+
+    body {
+      background: var(--black);
+      color: var(--white);
+      font-family: 'DM Sans', sans-serif;
+      font-weight: 300;
+      min-height: 100vh;
+    }
+
+    /* ── HEADER ── */
+    header {
+      border-bottom: 1px solid #222;
+      padding: 0 2.5rem;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      height: 72px;
+      position: sticky;
+      top: 0;
+      background: var(--black);
+      z-index: 100;
+    }
+
+    .club-name {
+      font-family: 'Bebas Neue', sans-serif;
+      font-size: 1.6rem;
+      letter-spacing: 0.12em;
+      color: var(--gold);
+    }
+
+    .last-updated {
+      font-size: 0.75rem;
+      color: var(--text-dim);
+      letter-spacing: 0.05em;
+    }
+
+    /* ── LAYOUT ── */
+    main {
+      max-width: 1200px;
+      margin: 0 auto;
+      padding: 2.5rem 2.5rem 5rem;
+    }
+
+    /* ── LOADING / ERROR ── */
+    #status {
+      text-align: center;
+      padding: 5rem 2rem;
+      color: var(--text-dim);
+      font-size: 0.9rem;
+      letter-spacing: 0.05em;
+    }
+
+    #status.error { color: var(--red); }
+
+    /* ── SETUP BANNER ── */
+    #setup-banner {
+      background: #1a1400;
+      border: 1px solid var(--gold-dim);
+      border-radius: 8px;
+      padding: 1.5rem 2rem;
+      margin-bottom: 2rem;
+      font-size: 0.85rem;
+      line-height: 1.7;
+      color: #c8b87a;
+    }
+
+    #setup-banner strong { color: var(--gold); }
+    #setup-banner code {
+      background: #2a2000;
+      padding: 0.1em 0.4em;
+      border-radius: 3px;
+      font-size: 0.8rem;
+    }
+
+    /* ── SCORECARDS ── */
+    .scorecards {
+      display: grid;
+      grid-template-columns: repeat(4, 1fr);
+      gap: 1px;
+      background: #222;
+      border: 1px solid #222;
+      border-radius: 8px;
+      overflow: hidden;
+      margin-bottom: 2.5rem;
+    }
+
+    .scorecard {
+      background: var(--grey);
+      padding: 1.8rem 1.5rem;
+      display: flex;
+      flex-direction: column;
+      gap: 0.4rem;
+    }
+
+    .scorecard-label {
+      font-size: 0.68rem;
+      letter-spacing: 0.12em;
+      text-transform: uppercase;
+      color: var(--text-dim);
+    }
+
+    .scorecard-value {
+      font-family: 'Bebas Neue', sans-serif;
+      font-size: 3rem;
+      line-height: 1;
+      color: var(--gold);
+    }
+
+    .scorecard-value.green { color: var(--green); }
+    .scorecard-value.red { color: var(--red); }
+
+    .scorecard-sub {
+      font-size: 0.75rem;
+      color: var(--text-dim);
+      margin-top: 0.2rem;
+    }
+
+    /* ── SECTION TITLES ── */
+    .section-title {
+      font-family: 'Bebas Neue', sans-serif;
+      font-size: 1.1rem;
+      letter-spacing: 0.15em;
+      color: var(--gold);
+      margin-bottom: 1rem;
+      display: flex;
+      align-items: center;
+      gap: 0.8rem;
+    }
+
+    .section-title::after {
+      content: '';
+      flex: 1;
+      height: 1px;
+      background: #222;
+    }
+
+    /* ── CHART BAR ── */
+    .chart-wrap {
+      background: var(--grey);
+      border-radius: 8px;
+      padding: 1.5rem;
+      margin-bottom: 2.5rem;
+      overflow-x: auto;
+    }
+
+    .bar-chart {
+      display: flex;
+      flex-direction: column;
+      gap: 0.6rem;
+      min-width: 400px;
+    }
+
+    .bar-row {
+      display: grid;
+      grid-template-columns: 160px 1fr 48px;
+      align-items: center;
+      gap: 0.8rem;
+    }
+
+    .bar-label {
+      font-size: 0.78rem;
+      color: var(--white);
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+
+    .bar-label .bar-date {
+      display: block;
+      font-size: 0.65rem;
+      color: var(--text-dim);
+      margin-top: 1px;
+    }
+
+    .bar-track {
+      height: 28px;
+      background: #1a1a1a;
+      border-radius: 3px;
+      overflow: hidden;
+      display: flex;
+    }
+
+    .bar-fill {
+      height: 100%;
+      transition: width 0.6s ease;
+    }
+
+    .bar-fill.accepted { background: var(--green); }
+    .bar-fill.declined { background: var(--red); }
+    .bar-fill.no-response { background: var(--mid); }
+
+    .bar-pct {
+      font-family: 'Bebas Neue', sans-serif;
+      font-size: 1rem;
+      color: var(--gold);
+      text-align: right;
+    }
+
+    /* ── MEMBER TABLE ── */
+    .member-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+      gap: 1px;
+      background: #222;
+      border: 1px solid #222;
+      border-radius: 8px;
+      overflow: hidden;
+      margin-bottom: 2.5rem;
+    }
+
+    .member-card {
+      background: var(--grey);
+      padding: 1rem 1.2rem;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+    }
+
+    .member-name {
+      font-size: 0.82rem;
+      font-weight: 500;
+    }
+
+    .member-pct {
+      font-family: 'Bebas Neue', sans-serif;
+      font-size: 1.2rem;
+      color: var(--gold);
+    }
+
+    .member-pct.high { color: var(--green); }
+    .member-pct.low { color: var(--red); }
+
+    /* ── EVENTS TABLE ── */
+    .events-table {
+      width: 100%;
+      border-collapse: collapse;
+      font-size: 0.82rem;
+    }
+
+    .events-table th {
+      text-align: left;
+      font-size: 0.65rem;
+      letter-spacing: 0.1em;
+      text-transform: uppercase;
+      color: var(--text-dim);
+      padding: 0.6rem 1rem;
+      border-bottom: 1px solid #222;
+      font-weight: 400;
+    }
+
+    .events-table td {
+      padding: 0.75rem 1rem;
+      border-bottom: 1px solid #1a1a1a;
+      vertical-align: middle;
+    }
+
+    .events-table tr:last-child td { border-bottom: none; }
+
+    .events-table tr:hover td { background: #1e1e1e; }
+
+    .pill {
+      display: inline-block;
+      padding: 0.2em 0.6em;
+      border-radius: 3px;
+      font-size: 0.72rem;
+      font-weight: 500;
+    }
+
+    .pill.green { background: #1a3d2b; color: var(--green); }
+    .pill.red { background: #3d1a1a; color: var(--red); }
+    .pill.grey { background: #222; color: var(--text-dim); }
+
+    /* ── FILTER ROW ── */
+    .filter-row {
+      display: flex;
+      gap: 1rem;
+      margin-bottom: 1.5rem;
+      align-items: center;
+      flex-wrap: wrap;
+    }
+
+    .filter-row label {
+      font-size: 0.72rem;
+      letter-spacing: 0.08em;
+      text-transform: uppercase;
+      color: var(--text-dim);
+    }
+
+    .filter-row input, .filter-row select {
+      background: var(--grey);
+      border: 1px solid #333;
+      border-radius: 4px;
+      color: var(--white);
+      padding: 0.45rem 0.8rem;
+      font-family: 'DM Sans', sans-serif;
+      font-size: 0.82rem;
+    }
+
+    /* ── LEGEND ── */
+    .legend {
+      display: flex;
+      gap: 1.5rem;
+      margin-bottom: 1rem;
+      font-size: 0.72rem;
+      color: var(--text-dim);
+    }
+
+    .legend-dot {
+      width: 10px; height: 10px;
+      border-radius: 2px;
+      display: inline-block;
+      margin-right: 0.35rem;
+      vertical-align: middle;
+    }
+
+    @media (max-width: 700px) {
+      header { padding: 0 1.2rem; }
+      main { padding: 1.5rem 1.2rem 4rem; }
+      .scorecards { grid-template-columns: repeat(2, 1fr); }
+      .bar-row { grid-template-columns: 110px 1fr 40px; }
+    }
+  </style>
+</head>
+<body>
+
+<header>
+  <div class="club-name">Cheltenham CS — Attendance</div>
+  <div class="last-updated" id="last-updated"></div>
+</header>
+
+<main>
+  <div id="status">Loading data...</div>
+  <div id="dashboard" style="display:none">
+
+    <!-- SETUP BANNER (hidden once configured) -->
+    <div id="setup-banner" style="display:none">
+      <strong>Setup needed:</strong> Open this file in a text editor and replace <code>YOUR_SHEET_ID</code>
+      near the top of the script with your Google Sheet ID. You can find it in your sheet's URL:<br>
+      <code>https://docs.google.com/spreadsheets/d/<strong>THIS_PART</strong>/edit</code>
+    </div>
+
+    <!-- SCORECARDS -->
+    <div class="scorecards">
+      <div class="scorecard">
+        <div class="scorecard-label">Avg Attendance</div>
+        <div class="scorecard-value" id="sc-avg">—</div>
+        <div class="scorecard-sub">across all events</div>
+      </div>
+      <div class="scorecard">
+        <div class="scorecard-label">Total Events</div>
+        <div class="scorecard-value" id="sc-events">—</div>
+        <div class="scorecard-sub">in selected period</div>
+      </div>
+      <div class="scorecard">
+        <div class="scorecard-label">Top Attendance</div>
+        <div class="scorecard-value green" id="sc-top">—</div>
+        <div class="scorecard-sub" id="sc-top-name">best event</div>
+      </div>
+      <div class="scorecard">
+        <div class="scorecard-label">Squad Size</div>
+        <div class="scorecard-value" id="sc-squad">—</div>
+        <div class="scorecard-sub">active members</div>
+      </div>
+    </div>
+
+    <!-- ATTENDANCE BY EVENT -->
+    <div class="section-title">Attendance by Event</div>
+    <div class="legend">
+      <span><span class="legend-dot" style="background:var(--green)"></span>Accepted</span>
+      <span><span class="legend-dot" style="background:var(--red)"></span>Declined</span>
+      <span><span class="legend-dot" style="background:var(--mid)"></span>No Response</span>
+    </div>
+    <div class="chart-wrap">
+      <div class="bar-chart" id="event-bars"></div>
+    </div>
+
+    <!-- MEMBER ATTENDANCE -->
+    <div class="section-title">Member Attendance Rate</div>
+    <div class="member-grid" id="member-grid"></div>
+
+    <!-- EVENTS TABLE -->
+    <div class="section-title">All Events</div>
+    <div class="filter-row">
+      <label>Search</label>
+      <input type="text" id="search" placeholder="Event name..." oninput="filterTable()">
+    </div>
+    <div class="chart-wrap" style="padding: 0; overflow-x: auto;">
+      <table class="events-table">
+        <thead>
+          <tr>
+            <th>Event</th>
+            <th>Date</th>
+            <th>Location</th>
+            <th>Accepted</th>
+            <th>Declined</th>
+            <th>No Response</th>
+            <th>Attendance %</th>
+          </tr>
+        </thead>
+        <tbody id="events-tbody"></tbody>
+      </table>
+    </div>
+
+  </div>
+</main>
+
+<script>
+  // ─── CONFIGURATION ────────────────────────────────────────────────────────
+  // Replace YOUR_SHEET_ID with the ID from your Google Sheet URL
+  // e.g. https://docs.google.com/spreadsheets/d/1BxiMVs0XRA5nFMdKvBdBZjgmUUqptlbs74OgVE2upms/edit
+  //                                              ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  const SHEET_ID = '1MLG6Xf9zGDx9orTGHG2Hk5wrynZKuZoxmdhSgeAXpVk';
+  const EVENTS_SHEET = 'Events';
+  const ATTENDANCE_SHEET = 'Attendance';
+
+  // ─── FETCH DATA ───────────────────────────────────────────────────────────
+  async function fetchSheet(sheetName) {
+    const url = `https://docs.google.com/spreadsheets/d/${SHEET_ID}/gviz/tq?tqx=out:csv&sheet=${encodeURIComponent(sheetName)}`;
+    const res = await fetch(url);
+    if (!res.ok) throw new Error(`Failed to fetch ${sheetName} sheet`);
+    const text = await res.text();
+    return Papa.parse(text, { header: true, skipEmptyLines: true }).data;
+  }
+
+  // ─── MAIN ─────────────────────────────────────────────────────────────────
+  let allEvents = [];
+
+  async function init() {
+    if (SHEET_ID === 'YOUR_SHEET_ID') {
+      document.getElementById('status').style.display = 'none';
+      document.getElementById('dashboard').style.display = 'block';
+      document.getElementById('setup-banner').style.display = 'block';
+      return;
+    }
+
+    try {
+      const [events, attendance] = await Promise.all([
+        fetchSheet(EVENTS_SHEET),
+        fetchSheet(ATTENDANCE_SHEET),
+      ]);
+
+      allEvents = events;
+      render(events, attendance);
+
+      document.getElementById('status').style.display = 'none';
+      document.getElementById('dashboard').style.display = 'block';
+    } catch (err) {
+      document.getElementById('status').textContent = `Error: ${err.message}. Make sure your sheet is shared publicly (anyone with link can view).`;
+      document.getElementById('status').className = 'error';
+    }
+  }
+
+  function render(events, attendance) {
+    // Sort events by date descending
+    events.sort((a, b) => new Date(b['Date']) - new Date(a['Date']));
+
+    // ── Scorecards ──
+    const avgs = events.map(e => parseFloat(e['Attendance %'])).filter(n => !isNaN(n));
+    const avg = avgs.length ? (avgs.reduce((a,b) => a+b, 0) / avgs.length).toFixed(1) : '—';
+    document.getElementById('sc-avg').textContent = avg !== '—' ? avg + '%' : '—';
+    document.getElementById('sc-events').textContent = events.length;
+
+    const topEvent = events.reduce((best, e) => {
+      return parseFloat(e['Attendance %']) > parseFloat(best['Attendance %'] || 0) ? e : best;
+    }, {});
+    document.getElementById('sc-top').textContent = topEvent['Attendance %'] ? topEvent['Attendance %'] + '%' : '—';
+    document.getElementById('sc-top-name').textContent = topEvent['Event Name'] || '';
+
+    // Member count from attendance sheet
+    const members = [...new Set(attendance.map(r => r['Member Name']).filter(Boolean))];
+    document.getElementById('sc-squad').textContent = members.length;
+
+    // Last updated
+    const lastUpdated = events[0]?.['Last Updated'];
+    if (lastUpdated) document.getElementById('last-updated').textContent = 'Updated ' + lastUpdated;
+
+    // ── Event bars ──
+    const bars = document.getElementById('event-bars');
+    const recentEvents = events.slice(0, 20);
+    const maxTotal = Math.max(...recentEvents.map(e => parseInt(e['Total Invited']) || 1));
+
+    bars.innerHTML = recentEvents.map(e => {
+      const accepted = parseInt(e['Accepted']) || 0;
+      const declined = parseInt(e['Declined']) || 0;
+      const noResp = parseInt(e['No Response']) || 0;
+      const total = parseInt(e['Total Invited']) || 1;
+      const pct = parseFloat(e['Attendance %']) || 0;
+      const aW = (accepted/total*100).toFixed(1);
+      const dW = (declined/total*100).toFixed(1);
+      const nW = (noResp/total*100).toFixed(1);
+      const date = e['Date'] ? new Date(e['Date']).toLocaleDateString('en-GB', {day:'numeric', month:'short'}) : '';
+
+      return `
+        <div class="bar-row">
+          <div class="bar-label">
+            ${e['Event Name'] || 'Event'}
+            <span class="bar-date">${date}</span>
+          </div>
+          <div class="bar-track">
+            <div class="bar-fill accepted" style="width:${aW}%"></div>
+            <div class="bar-fill declined" style="width:${dW}%"></div>
+            <div class="bar-fill no-response" style="width:${nW}%"></div>
+          </div>
+          <div class="bar-pct">${pct}%</div>
+        </div>`;
+    }).join('');
+
+    // ── Member attendance ──
+    const memberGrid = document.getElementById('member-grid');
+    const memberAccepted = {};
+    const memberTotal = {};
+    attendance.forEach(r => {
+      const name = r['Member Name'];
+      if (!name) return;
+      memberTotal[name] = (memberTotal[name] || 0) + 1;
+      if (r['Response'] === 'Accepted') memberAccepted[name] = (memberAccepted[name] || 0) + 1;
+    });
+
+    const memberStats = Object.keys(memberTotal).map(name => ({
+      name,
+      pct: Math.round((memberAccepted[name] || 0) / memberTotal[name] * 100)
+    })).sort((a, b) => b.pct - a.pct);
+
+    memberGrid.innerHTML = memberStats.map(m => {
+      const cls = m.pct >= 70 ? 'high' : m.pct < 40 ? 'low' : '';
+      return `
+        <div class="member-card">
+          <div class="member-name">${m.name}</div>
+          <div class="member-pct ${cls}">${m.pct}%</div>
+        </div>`;
+    }).join('');
+
+    // ── Events table ──
+    renderTable(events);
+  }
+
+  function renderTable(events) {
+    const tbody = document.getElementById('events-tbody');
+    tbody.innerHTML = events.map(e => {
+      const pct = parseFloat(e['Attendance %']) || 0;
+      const pillCls = pct >= 70 ? 'green' : pct < 40 ? 'red' : 'grey';
+      const date = e['Date'] ? new Date(e['Date']).toLocaleDateString('en-GB', {day:'numeric', month:'short', year:'numeric'}) : '';
+      return `
+        <tr>
+          <td>${e['Event Name'] || '—'}</td>
+          <td>${date}</td>
+          <td>${e['Location'] || '—'}</td>
+          <td>${e['Accepted'] || 0}</td>
+          <td>${e['Declined'] || 0}</td>
+          <td>${e['No Response'] || 0}</td>
+          <td><span class="pill ${pillCls}">${pct}%</span></td>
+        </tr>`;
+    }).join('');
+  }
+
+  function filterTable() {
+    const q = document.getElementById('search').value.toLowerCase();
+    const filtered = allEvents.filter(e => (e['Event Name'] || '').toLowerCase().includes(q));
+    renderTable(filtered);
+  }
+
+  init();
+</script>
+</body>
+</html>
