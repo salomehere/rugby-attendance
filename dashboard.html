@@ -162,8 +162,11 @@
   }
   function included(n) { return isGame(n) || isTrain(n); }
 
+  var SHEET_GIDS = { 'Events': '1466678272', 'Attendance': '1769471796' };
+
   function fetchCSV(sheet) {
-    var url = 'https://docs.google.com/spreadsheets/d/' + SHEET_ID + '/export?format=csv&sheet=' + encodeURIComponent(sheet);
+    var gid = SHEET_GIDS[sheet] || '';
+    var url = 'https://docs.google.com/spreadsheets/d/' + SHEET_ID + '/export?format=csv&sheet=' + encodeURIComponent(sheet) + '&gid=' + gid;
     return fetch(url).then(function(r) {
       if (!r.ok) throw new Error('Could not load ' + sheet + ' (' + r.status + ')');
       return r.text();
