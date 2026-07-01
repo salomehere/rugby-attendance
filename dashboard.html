@@ -353,7 +353,7 @@
 
     function rows(evts,future) {
       if(!evts||!evts.length) return '<div style="color:var(--dim);font-size:0.8rem;padding:0.5rem 0">None recorded</div>';
-      return evts.sort(function(a,b){return new Date(b.date)-new Date(a.date);}).map(function(ev){
+      return evts.sort(function(a,b){return new Date(a.date)-new Date(b.date);}).map(function(ev){
         var rc = future ? 'pf' : ev.resp==='Accepted'?'pg':ev.resp==='Declined'?'pr':'pm';
         return '<div class="mrow"><div><div class="mrow-name">'+ev.name+'</div><div class="mrow-date">'+fmtDate(ev.date,true)+'</div></div>'
           +'<span class="pill '+rc+'">'+ev.resp+'</span></div>';
@@ -375,8 +375,9 @@
   }
 
   function renderTable(events) {
+    var sorted = events.slice().sort(function(a,b){return new Date(a['Date'])-new Date(b['Date']);});
     var h='';
-    events.forEach(function(e){
+    sorted.forEach(function(e){
       var pct=parseFloat(e['Attendance %'])||0;
       var pc=pct>=70?'pg':pct<40?'pr':'pm';
       var future=isFuture(e['Date']);
