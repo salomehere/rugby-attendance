@@ -161,12 +161,12 @@
   var TODAY = new Date(); TODAY.setHours(0,0,0,0);
 
   function isGame(n)     { return /\u2013|\u2014| - /.test(n || ''); }
-  function isPreseason(n){ return (n || '').toLowerCase().indexOf('preseason') !== -1; }
-  function isTrain(n)    { var l=(n||'').toLowerCase(); return l.indexOf('training')!==-1 && l.indexOf('preseason')===-1; }
+  function isPreseason(n){ var l=(n||'').toLowerCase(); return l.indexOf('preseason')!==-1 || l.indexOf('pre season')!==-1; }
+  function isTrain(n)    { var l=(n||'').toLowerCase(); return l.indexOf('training')!==-1 && l.indexOf('preseason')===-1 && l.indexOf('pre season')===-1; }
   function included(n)   { return isGame(n) || isTrain(n) || isPreseason(n); }
   function isFuture(d)   { return d && new Date(d) > TODAY; }
 
-  var SHEET_GIDS = { 'Events':'1466678272', 'Attendance':'1769471796', 'Members':'0' };
+  var SHEET_GIDS = { 'Events':'1466678272', 'Attendance':'1769471796', 'Members':'1822843470' };
 
   function fetchCSV(sheet) {
     var gid = SHEET_GIDS[sheet] || '';
