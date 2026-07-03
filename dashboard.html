@@ -36,7 +36,7 @@
     .ldot { width:10px; height:10px; border-radius:2px; display:inline-block; margin-right:0.35rem; vertical-align:middle; }
 
     .bar-chart { display:flex; flex-direction:column; gap:0.6rem; min-width:400px; }
-    .bar-row { display:grid; grid-template-columns:180px 1fr 52px; align-items:center; gap:0.8rem; }
+    .bar-row { display:grid; grid-template-columns:180px 1fr auto; align-items:center; gap:0.8rem; }
     .bar-row.future { opacity:0.6; }
     .blabel { font-size:0.78rem; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
     .bdate { display:block; font-size:0.65rem; color:var(--dim); margin-top:1px; }
@@ -137,13 +137,7 @@
       <span><span class="ldot" style="background:var(--mid)"></span>No Response</span>
       <span style="opacity:0.6"><span class="ldot" style="background:#334;border:1px dashed #556"></span>Upcoming</span>
     </div>
-    <div style="display:grid;grid-template-columns:1fr 280px;gap:1rem;margin-bottom:2.5rem;align-items:start">
-      <div class="wrap" style="margin-bottom:0"><div class="bar-chart" id="bars"></div></div>
-      <div class="wrap" style="margin-bottom:0;padding:1rem">
-        <div style="font-size:0.68rem;letter-spacing:0.12em;text-transform:uppercase;color:var(--dim);margin-bottom:0.8rem">Responses by Session</div>
-        <div id="sidepanel"></div>
-      </div>
-    </div>
+    <div class="wrap" style="margin-bottom:2.5rem"><div class="bar-chart" id="bars"></div></div>
 
     <div class="stitle">Attendance by Player</div>
     <p style="font-size:0.78rem;color:var(--dim);margin-bottom:1rem">Click a player to see their full record</p>
@@ -274,12 +268,22 @@
       var acc=parseInt(e['Accepted'])||0, dec=parseInt(e['Declined'])||0, nor=parseInt(e['No Response'])||0;
       var tot=parseInt(e['Total Invited'])||1, pct=parseFloat(e['Attendance %'])||0;
       var future = isFuture(e['Date']);
+      var eid = e['Event ID'];
+      var eatt = eventAttMap[eid] || {accepted:[],declined:[],noresponse:[]};
+
       var typeTag = isGame(e['Event Name'])
         ? '<span class="pill pg" style="font-size:0.6rem;padding:0.1em 0.35em;margin-left:4px">GAME</span>'
         : isPreseason(e['Event Name'])
           ? '<span class="pill po" style="font-size:0.6rem;padding:0.1em 0.35em;margin-left:4px">PRESEASON</span>'
           : '<span class="pill pb" style="font-size:0.6rem;padding:0.1em 0.35em;margin-left:4px">TRAINING</span>';
       var upcomingTag = future ? '<span class="pill pf" style="font-size:0.6rem;padding:0.1em 0.35em;margin-left:4px">UPCOMING</span>' : '';
+
+      // Coach name tags
+      var coachTags = COACHES.map(function(coach) {
+        var col = eatt.accepted.indexOf(coach)!==-1 ? 'var(--green)' : eatt.declined.indexOf(coach)!==-1 ? 'var(--red)' : 'var(--dim)';
+        return '<span style="font-size:0.7rem;color:'+col+';margin-left:8px;white-space:nowrap">'+coach+'</span>';
+      }).join('');
+
       bh += '<div class="bar-row'+(future?' future':'')+'" style="cursor:pointer" onclick="openEventModal(\''+e['Event ID']+'\')">'
         +'<div class="blabel">'+e['Event Name']+typeTag+upcomingTag+'<span class="bdate">'+fmtDate(e['Date'])+'</span></div>'
         +'<div class="btrack">'
@@ -287,7 +291,10 @@
           +'<div class="bf bf-d" style="width:'+(dec/tot*100).toFixed(1)+'%"></div>'
           +'<div class="bf bf-n" style="width:'+(nor/tot*100).toFixed(1)+'%"></div>'
         +'</div>'
-        +'<div class="bpct">'+(future ? acc+' ✓' : pct+'%')+'</div>'
+        +'<div style="display:flex;align-items:center;gap:0px">'
+          +'<div class="bpct">'+(future ? acc+' ✓' : pct+'%')+'</div>'
+          +coachTags
+        +'</div>'
         +'</div>';
     });
     document.getElementById('bars').innerHTML = bh || '<div style="color:var(--dim);font-size:0.85rem">No events yet this season</div>';
