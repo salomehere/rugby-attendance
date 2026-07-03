@@ -139,14 +139,15 @@ async def fetch_spond_data():
             comment_texts.append(f"{author_name}: {text}")
         comments_str = " | ".join(comment_texts)
 
-        spond_known_ids = accepted_ids | declined_ids | unresponded_ids | waiting_ids
-        total_invited = len(spond_known_ids)
-        attendance_pct = round((len(accepted_ids) / total_invited * 100), 1) if total_invited > 0 else 0
+        total_members = len(members)
+        real_no_response = total_members - len(accepted_ids) - len(declined_ids) - len(waiting_ids)
+        real_no_response = max(0, real_no_response)
+        attendance_pct = round((len(accepted_ids) / total_members * 100), 1) if total_members > 0 else 0
 
         event_summary_rows.append([
             event_id, heading, start_str, start_date, event_type, location_str,
-            len(accepted_ids), len(declined_ids), len(unresponded_ids), len(waiting_ids),
-            total_invited, attendance_pct, comments_str,
+            len(accepted_ids), len(declined_ids), real_no_response, len(waiting_ids),
+            total_members, attendance_pct, comments_str,
             datetime.utcnow().strftime("%Y-%m-%d %H:%M"),
         ])
 
