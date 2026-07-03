@@ -95,7 +95,17 @@
     .mrow-name { color:var(--white); }
     .mrow-date { font-size:0.7rem; color:var(--dim); margin-top:2px; }
 
-    @media(max-width:700px) {
+    .sp-event { margin-bottom:1rem; padding-bottom:1rem; border-bottom:1px solid #222; }
+    .sp-event:last-child { border-bottom:none; margin-bottom:0; padding-bottom:0; }
+    .sp-title { font-size:0.72rem; font-weight:500; margin-bottom:0.4rem; color:var(--gold); }
+    .sp-date { font-size:0.65rem; color:var(--dim); margin-bottom:0.5rem; }
+    .sp-name { font-size:0.75rem; padding:0.2rem 0; display:flex; justify-content:space-between; align-items:center; }
+    .sp-section { font-size:0.6rem; text-transform:uppercase; letter-spacing:0.08em; color:var(--dim); margin:0.4rem 0 0.2rem; }
+
+    @media(max-width:900px) {
+      #events-layout { grid-template-columns:1fr !important; }
+      #sidepanel-wrap { display:none; }
+    }
       header { padding:0 1.2rem; }
       main { padding:1.5rem 1.2rem 4rem; }
       .scorecards { grid-template-columns:repeat(3,1fr); }
@@ -127,7 +137,13 @@
       <span><span class="ldot" style="background:var(--mid)"></span>No Response</span>
       <span style="opacity:0.6"><span class="ldot" style="background:#334;border:1px dashed #556"></span>Upcoming</span>
     </div>
-    <div class="wrap"><div class="bar-chart" id="bars"></div></div>
+    <div style="display:grid;grid-template-columns:1fr 280px;gap:1rem;margin-bottom:2.5rem;align-items:start">
+      <div class="wrap" style="margin-bottom:0"><div class="bar-chart" id="bars"></div></div>
+      <div class="wrap" style="margin-bottom:0;padding:1rem">
+        <div style="font-size:0.68rem;letter-spacing:0.12em;text-transform:uppercase;color:var(--dim);margin-bottom:0.8rem">Responses by Session</div>
+        <div id="sidepanel"></div>
+      </div>
+    </div>
 
     <div class="stitle">Attendance by Player</div>
     <p style="font-size:0.78rem;color:var(--dim);margin-bottom:1rem">Click a player to see their full record</p>
@@ -275,6 +291,42 @@
         +'</div>';
     });
     document.getElementById('bars').innerHTML = bh || '<div style="color:var(--dim);font-size:0.85rem">No events yet this season</div>';
+
+    // Side panel — show all responses per event
+    var sh = '';
+    barEvents.forEach(function(e) {
+      var eid = e['Event ID'];
+      var att = eventAttMap[eid] || {accepted:[],declined:[],noresponse:[]};
+      var coachesAcc = att.accepted.filter(function(n){ return COACHES.indexOf(n)!==-1; });
+      var coachesDec = att.declined.filter(function(n){ return COACHES.indexOf(n)!==-1; });
+      var coachesNor = att.noresponse.filter(function(n){ return COACHES.indexOf(n)!==-1; });
+      var playerAcc  = att.accepted.filter(function(n){ return COACHES.indexOf(n)===-1; });
+      var playerDec  = att.declined.filter(function(n){ return COACHES.indexOf(n)===-1; });
+      var playerNor  = att.noresponse.filter(function(n){ return COACHES.indexOf(n)===-1; });
+
+      function nameRow(name, cls, label) {
+        return '<div class="sp-name"><span>'+name+'</span><span class="pill '+cls+'" style="font-size:0.6rem;padding:0.1em 0.4em">'+label+'</span></div>';
+      }
+
+      var rows = '';
+      if(coachesAcc.length||coachesDec.length||coachesNor.length) {
+        rows += '<div class="sp-section">Coaches</div>';
+        coachesAcc.forEach(function(n){rows+=nameRow(n,'pg','✓');});
+        coachesDec.forEach(function(n){rows+=nameRow(n,'pr','✗');});
+        coachesNor.forEach(function(n){rows+=nameRow(n,'pm','?');});
+      }
+      if(playerNor.length) {
+        rows += '<div class="sp-section">No Response ('+playerNor.length+')</div>';
+        playerNor.forEach(function(n){rows+=nameRow(n,'pm','?');});
+      }
+
+      sh += '<div class="sp-event">'
+        +'<div class="sp-title">'+e['Event Name']+'</div>'
+        +'<div class="sp-date">'+fmtDate(e['Date'],true)+'</div>'
+        +rows
+        +'</div>';
+    });
+    document.getElementById('sidepanel').innerHTML = sh || '<div style="color:var(--dim);font-size:0.8rem">No events yet</div>';
 
     // Member stats from attendance
     var stats = {};
