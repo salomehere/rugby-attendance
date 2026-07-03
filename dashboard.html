@@ -292,37 +292,28 @@
     });
     document.getElementById('bars').innerHTML = bh || '<div style="color:var(--dim);font-size:0.85rem">No events yet this season</div>';
 
-    // Side panel — show all responses per event
+    // Side panel — coaches per event + no-response count
     var sh = '';
     barEvents.forEach(function(e) {
       var eid = e['Event ID'];
       var att = eventAttMap[eid] || {accepted:[],declined:[],noresponse:[]};
       var coachesAcc = att.accepted.filter(function(n){ return COACHES.indexOf(n)!==-1; });
       var coachesDec = att.declined.filter(function(n){ return COACHES.indexOf(n)!==-1; });
-      var coachesNor = att.noresponse.filter(function(n){ return COACHES.indexOf(n)!==-1; });
-      var playerAcc  = att.accepted.filter(function(n){ return COACHES.indexOf(n)===-1; });
-      var playerDec  = att.declined.filter(function(n){ return COACHES.indexOf(n)===-1; });
-      var playerNor  = att.noresponse.filter(function(n){ return COACHES.indexOf(n)===-1; });
 
       function nameRow(name, cls, label) {
         return '<div class="sp-name"><span>'+name+'</span><span class="pill '+cls+'" style="font-size:0.6rem;padding:0.1em 0.4em">'+label+'</span></div>';
       }
 
       var rows = '';
-      if(coachesAcc.length||coachesDec.length||coachesNor.length) {
-        rows += '<div class="sp-section">Coaches</div>';
-        coachesAcc.forEach(function(n){rows+=nameRow(n,'pg','✓');});
-        coachesDec.forEach(function(n){rows+=nameRow(n,'pr','✗');});
-        coachesNor.forEach(function(n){rows+=nameRow(n,'pm','?');});
-      }
-      if(playerNor.length) {
-        rows += '<div class="sp-section">No Response ('+playerNor.length+')</div>';
-        playerNor.forEach(function(n){rows+=nameRow(n,'pm','?');});
-      }
+      // Coaches section only
+      COACHES.forEach(function(coach) {
+        var cls = coachesAcc.indexOf(coach)!==-1 ? 'pg' : coachesDec.indexOf(coach)!==-1 ? 'pr' : 'pm';
+        var label = coachesAcc.indexOf(coach)!==-1 ? '✓' : coachesDec.indexOf(coach)!==-1 ? '✗' : '?';
+        rows += nameRow(coach, cls, label);
+      });
 
       sh += '<div class="sp-event">'
-        +'<div class="sp-title">'+e['Event Name']+'</div>'
-        +'<div class="sp-date">'+fmtDate(e['Date'],true)+'</div>'
+        +'<div class="sp-title">'+fmtDate(e['Date'])+'</div>'
         +rows
         +'</div>';
     });

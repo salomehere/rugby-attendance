@@ -28,7 +28,7 @@ GOOGLE_SHEET_NAME = "Rugby Club Attendance"         # exact name of your Google 
 
 # How far back and forward to pull events (days)
 DAYS_BACK = 365
-DAYS_FORWARD = 30
+DAYS_FORWARD = 90
 
 SCOPES = [
     "https://www.googleapis.com/auth/spreadsheets",
