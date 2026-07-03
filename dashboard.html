@@ -44,7 +44,9 @@
     .bar-row.future .btrack { border:1px dashed #333; }
     .bf { height:100%; }
     .bf-a { background:var(--green); } .bf-d { background:var(--red); } .bf-n { background:var(--mid); }
-    .bpct { font-family:'Bebas Neue',sans-serif; font-size:1rem; color:var(--gold); text-align:right; }
+    .bpct { font-family:'Bebas Neue',sans-serif; font-size:1rem; color:var(--gold); text-align:right; white-space:nowrap; }
+    .coach-tags { display:flex; gap:6px; align-items:center; }
+    .coach-tag { font-size:0.7rem; white-space:nowrap; }
 
     .pill { display:inline-block; padding:0.2em 0.6em; border-radius:3px; font-size:0.72rem; font-weight:500; }
     .pg { background:#1a3d2b; color:var(--green); }
@@ -95,21 +97,11 @@
     .mrow-name { color:var(--white); }
     .mrow-date { font-size:0.7rem; color:var(--dim); margin-top:2px; }
 
-    .sp-event { margin-bottom:1rem; padding-bottom:1rem; border-bottom:1px solid #222; }
-    .sp-event:last-child { border-bottom:none; margin-bottom:0; padding-bottom:0; }
-    .sp-title { font-size:0.72rem; font-weight:500; margin-bottom:0.4rem; color:var(--gold); }
-    .sp-date { font-size:0.65rem; color:var(--dim); margin-bottom:0.5rem; }
-    .sp-name { font-size:0.75rem; padding:0.2rem 0; display:flex; justify-content:space-between; align-items:center; }
-    .sp-section { font-size:0.6rem; text-transform:uppercase; letter-spacing:0.08em; color:var(--dim); margin:0.4rem 0 0.2rem; }
-
-    @media(max-width:900px) {
-      #events-layout { grid-template-columns:1fr !important; }
-      #sidepanel-wrap { display:none; }
-    }
+    @media(max-width:700px) {
       header { padding:0 1.2rem; }
       main { padding:1.5rem 1.2rem 4rem; }
       .scorecards { grid-template-columns:repeat(3,1fr); }
-      .bar-row { grid-template-columns:110px 1fr 40px; }
+      .bar-row { grid-template-columns:110px 1fr auto; }
     }
   </style>
 </head>
@@ -137,7 +129,7 @@
       <span><span class="ldot" style="background:var(--mid)"></span>No Response</span>
       <span style="opacity:0.6"><span class="ldot" style="background:#334;border:1px dashed #556"></span>Upcoming</span>
     </div>
-    <div class="wrap" style="margin-bottom:2.5rem"><div class="bar-chart" id="bars"></div></div>
+    <div class="wrap"><div class="bar-chart" id="bars"></div></div>
 
     <div class="stitle">Attendance by Player</div>
     <p style="font-size:0.78rem;color:var(--dim);margin-bottom:1rem">Click a player to see their full record</p>
@@ -169,19 +161,32 @@
   </div>
 </div>
 
+<div class="mbk" id="emodal" onclick="if(event.target===this)this.classList.remove('open')">
+  <div class="mdl">
+    <div class="mhdr">
+      <div>
+        <div class="mhdr-name" id="em-name"></div>
+        <div style="font-size:0.78rem;color:var(--dim);margin-top:0.2rem" id="em-date"></div>
+        <div style="margin-top:0.4rem" id="em-type"></div>
+      </div>
+      <button class="mclose" onclick="document.getElementById('emodal').classList.remove('open')">✕</button>
+    </div>
+    <div class="mbody" id="em-body"></div>
+  </div>
+</div>
+
 <script>
   var SHEET_ID = '1MLG6Xf9zGDx9orTGHG2Hk5wrynZKuZoxmdhSgeAXpVk';
   var SEASON_START = new Date('2026-07-09');
   var TODAY = new Date(); TODAY.setHours(0,0,0,0);
-
-  function isGame(n)     { return /\u2013|\u2014| - /.test(n || ''); }
-  function isPreseason(n){ var l=(n||'').toLowerCase(); return l.indexOf('preseason')!==-1 || l.indexOf('pre season')!==-1; }
-  function isTrain(n)    { var l=(n||'').toLowerCase(); return l.indexOf('training')!==-1 && l.indexOf('preseason')===-1 && l.indexOf('pre season')===-1; }
-  function included(n)   { return isGame(n) || isTrain(n) || isPreseason(n); }
-  function isFuture(d)   { return d && new Date(d) > TODAY; }
-
   var COACHES = ['Goose', 'Lisa Newman'];
   var SHEET_GIDS = { 'Events':'1466678272', 'Attendance':'1769471796', 'Members':'1822843470' };
+
+  function isGame(n)      { return /\u2013|\u2014| - /.test(n || ''); }
+  function isPreseason(n) { var l=(n||'').toLowerCase(); return l.indexOf('preseason')!==-1 || l.indexOf('pre season')!==-1; }
+  function isTrain(n)     { var l=(n||'').toLowerCase(); return l.indexOf('training')!==-1 && l.indexOf('preseason')===-1 && l.indexOf('pre season')===-1; }
+  function included(n)    { return isGame(n) || isTrain(n) || isPreseason(n); }
+  function isFuture(d)    { return d && new Date(d) > TODAY; }
 
   function fetchCSV(sheet) {
     var gid = SHEET_GIDS[sheet] || '';
@@ -197,11 +202,9 @@
   function init() {
     Promise.all([fetchCSV('Events'), fetchCSV('Attendance'), fetchCSV('Members')]).then(function(res){
       var events=res[0], att=res[1], members=res[2];
-
       var filtEvents = events.filter(function(e){ return included(e['Event Name']) && new Date(e['Date'])>=SEASON_START; });
       var filtAtt    = att.filter(function(r){ return included(r['Event Name']) && new Date(r['Date'])>=SEASON_START; });
 
-    // Build event->attendees map
       filtAtt.forEach(function(r){
         var eid=r['Event ID'], name=r['Member Name'], resp=r['Response']||'';
         if(!eid||!name) return;
@@ -213,7 +216,6 @@
 
       allEvents = filtEvents;
       render(filtEvents, filtAtt, members);
-
       document.getElementById('status').style.display='none';
       document.getElementById('dashboard').style.display='block';
     }).catch(function(err){
@@ -252,15 +254,15 @@
     document.getElementById('sc-games').textContent     = ga ? ga+'%' : '—';
     document.getElementById('sc-training').textContent  = ta ? ta+'%' : '—';
     document.getElementById('sc-preseason').textContent = pa ? pa+'%' : '—';
+
     var squadMembers = members.filter(function(m){ return COACHES.indexOf(m['Member Name'])===-1; });
     document.getElementById('sc-squad').textContent = squadMembers.length || '—';
 
     var lu = pastEvents[0] && pastEvents[0]['Last Updated'];
     if(lu) document.getElementById('updated').textContent = 'Updated '+lu;
 
-    // Bars — future events first (upcoming), then past (most recent)
-    var futureEvts = events.filter(function(e){return isFuture(e['Date']);}).reverse(); // ascending
-    var pastEvts   = events.filter(function(e){return !isFuture(e['Date']);}); // already desc
+    var futureEvts = events.filter(function(e){return isFuture(e['Date']);}).reverse();
+    var pastEvts   = events.filter(function(e){return !isFuture(e['Date']);});
     var barEvents  = futureEvts.concat(pastEvts).slice(0,25);
 
     var bh = '';
@@ -278,10 +280,9 @@
           : '<span class="pill pb" style="font-size:0.6rem;padding:0.1em 0.35em;margin-left:4px">TRAINING</span>';
       var upcomingTag = future ? '<span class="pill pf" style="font-size:0.6rem;padding:0.1em 0.35em;margin-left:4px">UPCOMING</span>' : '';
 
-      // Coach name tags
       var coachTags = COACHES.map(function(coach) {
         var col = eatt.accepted.indexOf(coach)!==-1 ? 'var(--green)' : eatt.declined.indexOf(coach)!==-1 ? 'var(--red)' : 'var(--dim)';
-        return '<span style="font-size:0.7rem;color:'+col+';margin-left:8px;white-space:nowrap">'+coach+'</span>';
+        return '<span class="coach-tag" style="color:'+col+'">'+coach+'</span>';
       }).join('');
 
       bh += '<div class="bar-row'+(future?' future':'')+'" style="cursor:pointer" onclick="openEventModal(\''+e['Event ID']+'\')">'
@@ -291,45 +292,15 @@
           +'<div class="bf bf-d" style="width:'+(dec/tot*100).toFixed(1)+'%"></div>'
           +'<div class="bf bf-n" style="width:'+(nor/tot*100).toFixed(1)+'%"></div>'
         +'</div>'
-        +'<div style="display:flex;align-items:center;gap:0px">'
+        +'<div style="display:flex;align-items:center;gap:8px">'
           +'<div class="bpct">'+(future ? acc+' ✓' : pct+'%')+'</div>'
-          +coachTags
+          +'<div class="coach-tags">'+coachTags+'</div>'
         +'</div>'
         +'</div>';
     });
     document.getElementById('bars').innerHTML = bh || '<div style="color:var(--dim);font-size:0.85rem">No events yet this season</div>';
 
-    // Side panel — coaches per event + no-response count
-    var sh = '';
-    barEvents.forEach(function(e) {
-      var eid = e['Event ID'];
-      var att = eventAttMap[eid] || {accepted:[],declined:[],noresponse:[]};
-      var coachesAcc = att.accepted.filter(function(n){ return COACHES.indexOf(n)!==-1; });
-      var coachesDec = att.declined.filter(function(n){ return COACHES.indexOf(n)!==-1; });
-
-      function nameRow(name, cls, label) {
-        return '<div class="sp-name"><span>'+name+'</span><span class="pill '+cls+'" style="font-size:0.6rem;padding:0.1em 0.4em">'+label+'</span></div>';
-      }
-
-      var rows = '';
-      // Coaches section only
-      COACHES.forEach(function(coach) {
-        var cls = coachesAcc.indexOf(coach)!==-1 ? 'pg' : coachesDec.indexOf(coach)!==-1 ? 'pr' : 'pm';
-        var label = coachesAcc.indexOf(coach)!==-1 ? '✓' : coachesDec.indexOf(coach)!==-1 ? '✗' : '?';
-        rows += nameRow(coach, cls, label);
-      });
-
-      sh += '<div class="sp-event">'
-        +'<div class="sp-title">'+fmtDate(e['Date'])+'</div>'
-        +rows
-        +'</div>';
-    });
-    document.getElementById('sidepanel').innerHTML = sh || '<div style="color:var(--dim);font-size:0.8rem">No events yet</div>';
-
-    // Member stats from attendance
     var stats = {};
-
-    // Pre-populate all squad members with empty stats
     members.forEach(function(m){
       var name = m['Member Name'];
       if(name) stats[name] = {gA:0,gT:0,tA:0,tT:0,pA:0,pT:0,gEvt:[],tEvt:[],pEvt:[]};
@@ -337,7 +308,7 @@
 
     att.forEach(function(r){
       var name=r['Member Name'], ename=r['Event Name']||'', date=r['Date']||'', resp=r['Response']||'';
-      if(!name||isFuture(date)) return; // exclude future from stats
+      if(!name||isFuture(date)) return;
       if(!stats[name]) stats[name]={gA:0,gT:0,tA:0,tT:0,pA:0,pT:0,gEvt:[],tEvt:[],pEvt:[]};
       var s=stats[name];
       if(isGame(ename)){
@@ -352,7 +323,6 @@
       }
     });
 
-    // Also store upcoming responses per member (for modal)
     att.forEach(function(r){
       var name=r['Member Name'], ename=r['Event Name']||'', date=r['Date']||'', resp=r['Response']||'';
       if(!name||!isFuture(date)||!included(ename)) return;
@@ -371,8 +341,8 @@
       return {name:n,gp:gp,tp:tp,pp:pp,sort:((gp||0)+(tp||0)+(pp||0))/3};
     }).sort(function(a,b){return b.sort-a.sort;});
 
-    var squadList  = ml.filter(function(m){ return COACHES.indexOf(m.name)===-1; });
-    var coachList  = ml.filter(function(m){ return COACHES.indexOf(m.name)!==-1; });
+    var squadList = ml.filter(function(m){ return COACHES.indexOf(m.name)===-1; });
+    var coachList = ml.filter(function(m){ return COACHES.indexOf(m.name)!==-1; });
 
     function buildCards(list) {
       var h='';
@@ -451,7 +421,8 @@
           ?'<span class="pill po">Preseason</span>'
           :'<span class="pill pb">Training</span>';
       var upTag=future?'<span class="pill pf" style="margin-left:4px">Upcoming</span>':'';
-      h+='<tr'+(future?' class="future-row"':'')+' style="cursor:pointer" onclick="openEventModal(\''+e['Event ID']+'\')">'+'<td>'+e['Event Name']+'</td><td>'+tp+upTag+'</td><td>'+fmtDate(e['Date'],true)+'</td><td>'+(e['Location']||'—')+'</td>'
+      h+='<tr'+(future?' class="future-row"':'')+' style="cursor:pointer" onclick="openEventModal(\''+e['Event ID']+'\')">'
+        +'<td>'+e['Event Name']+'</td><td>'+tp+upTag+'</td><td>'+fmtDate(e['Date'],true)+'</td><td>'+(e['Location']||'—')+'</td>'
         +'<td>'+(e['Accepted']||0)+'</td><td>'+(e['Declined']||0)+'</td><td>'+(e['No Response']||0)+'</td>'
         +'<td>'+(future?'<span class="pill pf">TBC</span>':'<span class="pill '+pc+'">'+pct+'%</span>')+'</td></tr>';
     });
@@ -483,8 +454,8 @@
     function nameList(arr, pillClass) {
       if(!arr.length) return '<div style="color:var(--dim);font-size:0.8rem;padding:0.4rem 0">None</div>';
       return arr.sort().map(function(n){
-        return '<div class="mrow"><div class="mrow-name">'+n+'</div><span class="pill '+pillClass+'">'+
-          (pillClass==='pg'?'Accepted':pillClass==='pr'?'Declined':'No Response')+'</span></div>';
+        return '<div class="mrow"><div class="mrow-name">'+n+'</div><span class="pill '+pillClass+'">'
+          +(pillClass==='pg'?'Accepted':pillClass==='pr'?'Declined':'No Response')+'</span></div>';
       }).join('');
     }
 
@@ -498,19 +469,5 @@
 
   init();
 </script>
-<div class="mbk" id="emodal" onclick="if(event.target===this)this.classList.remove('open')">
-  <div class="mdl">
-    <div class="mhdr">
-      <div>
-        <div class="mhdr-name" id="em-name"></div>
-        <div style="font-size:0.78rem;color:var(--dim);margin-top:0.2rem" id="em-date"></div>
-        <div style="margin-top:0.4rem" id="em-type"></div>
-      </div>
-      <button class="mclose" onclick="document.getElementById('emodal').classList.remove('open')">✕</button>
-    </div>
-    <div class="mbody" id="em-body"></div>
-  </div>
-</div>
-
 </body>
 </html>
