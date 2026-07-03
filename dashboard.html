@@ -133,6 +133,10 @@
     <p style="font-size:0.78rem;color:var(--dim);margin-bottom:1rem">Click a player to see their full record</p>
     <div class="mgrid" id="mgrid"></div>
 
+    <div class="stitle">Coaches</div>
+    <p style="font-size:0.78rem;color:var(--dim);margin-bottom:1rem">Click a coach to see their full record</p>
+    <div class="mgrid" id="cgrid"></div>
+
     <div class="stitle">All Events</div>
     <div class="frow"><label>Search</label><input type="text" id="search" placeholder="Event name..." oninput="filterTable()"></div>
     <div class="wrap" style="padding:0;overflow-x:auto;">
@@ -166,6 +170,7 @@
   function included(n)   { return isGame(n) || isTrain(n) || isPreseason(n); }
   function isFuture(d)   { return d && new Date(d) > TODAY; }
 
+  var COACHES = ['Goose', 'Lisa Newman'];
   var SHEET_GIDS = { 'Events':'1466678272', 'Attendance':'1769471796', 'Members':'1822843470' };
 
   function fetchCSV(sheet) {
@@ -237,7 +242,8 @@
     document.getElementById('sc-games').textContent     = ga ? ga+'%' : '—';
     document.getElementById('sc-training').textContent  = ta ? ta+'%' : '—';
     document.getElementById('sc-preseason').textContent = pa ? pa+'%' : '—';
-    document.getElementById('sc-squad').textContent     = members.length || '—';
+    var squadMembers = members.filter(function(m){ return COACHES.indexOf(m['Member Name'])===-1; });
+    document.getElementById('sc-squad').textContent = squadMembers.length || '—';
 
     var lu = pastEvents[0] && pastEvents[0]['Last Updated'];
     if(lu) document.getElementById('updated').textContent = 'Updated '+lu;
@@ -315,20 +321,28 @@
       return {name:n,gp:gp,tp:tp,pp:pp,sort:((gp||0)+(tp||0)+(pp||0))/3};
     }).sort(function(a,b){return b.sort-a.sort;});
 
-    var mh='';
-    ml.forEach(function(m){
-      var gc=m.gp===null?'cg':m.gp>=70?'cgr':m.gp<40?'cr':'cg';
-      var tc=m.tp===null?'cb':m.tp>=70?'cgr':m.tp<40?'cr':'cb';
-      var pc=m.pp===null?'co':m.pp>=70?'cgr':m.pp<40?'cr':'co';
-      mh+='<div class="mcard" onclick="openModal(\''+m.name.replace(/\\/g,'\\\\').replace(/'/g,"\\'")+'\')"> '
-        +'<div><div class="mname">'+m.name+'</div><div class="mhint">tap for details</div></div>'
-        +'<div class="mstats">'
-          +'<div class="mstat"><div class="mstat-l">Games</div><div class="mstat-v '+gc+'">'+(m.gp!==null?m.gp+'%':'—')+'</div></div>'
-          +'<div class="mstat"><div class="mstat-l">Training</div><div class="mstat-v '+tc+'">'+(m.tp!==null?m.tp+'%':'—')+'</div></div>'
-          +'<div class="mstat"><div class="mstat-l">Preseason</div><div class="mstat-v '+pc+'">'+(m.pp!==null?m.pp+'%':'—')+'</div></div>'
-        +'</div></div>';
-    });
-    document.getElementById('mgrid').innerHTML = mh || '<div style="padding:2rem;color:var(--dim)">No squad data yet</div>';
+    var squadList  = ml.filter(function(m){ return COACHES.indexOf(m.name)===-1; });
+    var coachList  = ml.filter(function(m){ return COACHES.indexOf(m.name)!==-1; });
+
+    function buildCards(list) {
+      var h='';
+      list.forEach(function(m){
+        var gc=m.gp===null?'cg':m.gp>=70?'cgr':m.gp<40?'cr':'cg';
+        var tc=m.tp===null?'cb':m.tp>=70?'cgr':m.tp<40?'cr':'cb';
+        var pc=m.pp===null?'co':m.pp>=70?'cgr':m.pp<40?'cr':'co';
+        h+='<div class="mcard" onclick="openModal(\''+m.name.replace(/\\/g,'\\\\').replace(/'/g,"\\'")+'\')"> '
+          +'<div><div class="mname">'+m.name+'</div><div class="mhint">tap for details</div></div>'
+          +'<div class="mstats">'
+            +'<div class="mstat"><div class="mstat-l">Games</div><div class="mstat-v '+gc+'">'+(m.gp!==null?m.gp+'%':'—')+'</div></div>'
+            +'<div class="mstat"><div class="mstat-l">Training</div><div class="mstat-v '+tc+'">'+(m.tp!==null?m.tp+'%':'—')+'</div></div>'
+            +'<div class="mstat"><div class="mstat-l">Preseason</div><div class="mstat-v '+pc+'">'+(m.pp!==null?m.pp+'%':'—')+'</div></div>'
+          +'</div></div>';
+      });
+      return h;
+    }
+
+    document.getElementById('mgrid').innerHTML = buildCards(squadList) || '<div style="padding:2rem;color:var(--dim)">No squad data yet</div>';
+    document.getElementById('cgrid').innerHTML = buildCards(coachList) || '<div style="padding:2rem;color:var(--dim)">No coach data yet</div>';
 
     renderTable(events);
   }
