@@ -1,5 +1,5 @@
 #!/bin/bash
-cd ~/rugby-attendance
+cd ~/Documents/GitHub/rugby-attendance
 python3 spond_pull.py
 echo ""
 echo "Done! Sheet has been updated."
