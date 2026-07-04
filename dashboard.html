@@ -281,9 +281,8 @@
       var upcomingTag = future ? '<span class="pill pf" style="font-size:0.6rem;padding:0.1em 0.35em;margin-left:4px">UPCOMING</span>' : '';
 
       var coachTags = COACHES.map(function(coach) {
-        var bg = eatt.accepted.indexOf(coach)!==-1 ? '#1a3d2b' : eatt.declined.indexOf(coach)!==-1 ? '#3d1a1a' : '#222';
-        var col = eatt.accepted.indexOf(coach)!==-1 ? 'var(--green)' : eatt.declined.indexOf(coach)!==-1 ? 'var(--red)' : 'var(--dim)';
-        return '<span style="font-size:0.65rem;color:'+col+';background:'+bg+';padding:0.15em 0.45em;border-radius:3px;white-space:nowrap">'+coach+'</span>';
+        var bg = eatt.accepted.indexOf(coach)!==-1 ? 'var(--green)' : eatt.declined.indexOf(coach)!==-1 ? 'var(--red)' : '#444';
+        return '<span style="font-size:0.65rem;color:#fff;background:'+bg+';padding:0.15em 0.45em;border-radius:3px;white-space:nowrap">'+coach+'</span>';
       }).join('');
 
       bh += '<div class="bar-row'+(future?' future':'')+'" style="cursor:pointer" onclick="openEventModal(\''+e['Event ID']+'\')">'
