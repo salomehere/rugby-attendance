@@ -471,9 +471,10 @@
       '<div class="msec">Declined ('+squadDec.length+')</div>'+nameList(squadDec,'pr','Declined')+
       '<div class="msec">No Response ('+squadNor.length+')</div>'+nameList(squadNor,'pm','No Response')+
       '<div class="msec">Coaches</div>'+
-        nameList(coachAcc,'pg','Accepted')+
-        nameList(coachDec,'pr','Declined')+
-        nameList(coachNor,'pm','No Response');
+        (coachAcc.length ? nameList(coachAcc,'pg','Accepted') : '')+
+        (coachDec.length ? nameList(coachDec,'pr','Declined') : '')+
+        (coachNor.length ? nameList(coachNor,'pm','No Response') : '')+
+        (!coachAcc.length && !coachDec.length && !coachNor.length ? '<div style="color:var(--dim);font-size:0.8rem;padding:0.4rem 0">No responses yet</div>' : '');
 
     document.getElementById('emodal').classList.add('open');
   }
