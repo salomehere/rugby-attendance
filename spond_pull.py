@@ -1,60 +1,49 @@
 """
 Spond Attendance Pull — Rugby Club
 Fetches attendance, responses, and comments from Spond
-and writes them to Google Sheets using OAuth.
+and writes them to Google Sheets.
+
+Auth:
+- Spond: username/password from SPOND_USERNAME / SPOND_PASSWORD env vars.
+- Google Sheets: Application Default Credentials. In GitHub Actions this is
+  set up by the google-github-actions/auth step (Workload Identity
+  Federation — no key file involved). Locally, run
+  `gcloud auth application-default login` first.
 
 Requirements: pip install -r requirements.txt
-Setup: See SETUP.md
 """
 
 import asyncio
 import os
 from datetime import datetime, timedelta
 
+import google.auth
 import gspread
-from google.oauth2.credentials import Credentials
-from google.auth.transport.requests import Request
-from google_auth_oauthlib.flow import InstalledAppFlow
 from spond import spond
 
 # ─── CONFIG ───────────────────────────────────────────────────────────────────
 
-SPOND_USERNAME = os.environ.get("SPOND_USERNAME", "ash.salome@gmail.com")
-SPOND_PASSWORD = os.environ.get("SPOND_PASSWORD", "Iloves2.")
+SPOND_USERNAME = os.environ.get("SPOND_USERNAME")
+SPOND_PASSWORD = os.environ.get("SPOND_PASSWORD")
 
-GOOGLE_CLIENT_SECRET_FILE = "client_secret.json"   # downloaded from Google Cloud
-GOOGLE_TOKEN_FILE = "token.json"                    # auto-created after first login
-GOOGLE_SHEET_NAME = "Rugby Club Attendance"         # exact name of your Google Sheet
+if not SPOND_USERNAME or not SPOND_PASSWORD:
+    raise SystemExit(
+        "SPOND_USERNAME and SPOND_PASSWORD must be set as environment variables "
+        "(GitHub Actions secrets in CI)."
+    )
+
+GOOGLE_SHEET_ID = "1MLG6Xf9zGDx9orTGHG2Hk5wrynZKuZoxmdhSgeAXpVk"  # Rugby Club Attendance
 
 # How far back and forward to pull events (days)
 DAYS_BACK = 365
 DAYS_FORWARD = 90
 
-SCOPES = [
-    "https://www.googleapis.com/auth/spreadsheets",
-    "https://www.googleapis.com/auth/drive",
-]
+SCOPES = ["https://www.googleapis.com/auth/spreadsheets"]
 
 # ─── GOOGLE SHEETS AUTH ───────────────────────────────────────────────────────
 
 def get_sheet_client():
-    creds = None
-
-    if os.path.exists(GOOGLE_TOKEN_FILE):
-        creds = Credentials.from_authorized_user_file(GOOGLE_TOKEN_FILE, SCOPES)
-
-    if not creds or not creds.valid:
-        if creds and creds.expired and creds.refresh_token:
-            creds.refresh(Request())
-        else:
-            print("Opening browser for Google login — please sign in and click Allow...")
-            flow = InstalledAppFlow.from_client_secrets_file(GOOGLE_CLIENT_SECRET_FILE, SCOPES)
-            creds = flow.run_local_server(port=0)
-
-        with open(GOOGLE_TOKEN_FILE, "w") as f:
-            f.write(creds.to_json())
-        print("Google login saved — won't need to log in again.")
-
+    creds, _ = google.auth.default(scopes=SCOPES)
     return gspread.authorize(creds)
 
 # ─── WORKSHEET HELPER ─────────────────────────────────────────────────────────
@@ -174,7 +163,7 @@ async def fetch_spond_data():
 def write_to_sheets(event_summary_rows, attendance_rows, members):
     print("Connecting to Google Sheets...")
     client = get_sheet_client()
-    spreadsheet = client.open(GOOGLE_SHEET_NAME)
+    spreadsheet = client.open_by_key(GOOGLE_SHEET_ID)
 
     event_headers = [
         "Event ID", "Event Name", "Date & Time", "Date",
@@ -206,7 +195,7 @@ def write_to_sheets(event_summary_rows, attendance_rows, members):
         ws_members.append_rows(member_rows)
     print(f"Written {len(member_rows)} members to 'Members' sheet")
 
-    print("✅ All done! Google Sheet updated.")
+    print("All done! Google Sheet updated.")
 
 # ─── MAIN ─────────────────────────────────────────────────────────────────────
 

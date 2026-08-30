@@ -1,0 +1,41 @@
+name: Daily Spond to Sheets sync
+
+on:
+  schedule:
+    # 00:00 UTC daily. Note: this is midnight UK time only during GMT
+    # (late Oct - late Mar); during BST (late Mar - late Oct) it runs
+    # at 1am UK time. Adjust the hour here if you want it pinned to
+    # exact local midnight year-round.
+    - cron: '0 0 * * *'
+  workflow_dispatch: {}
+
+permissions:
+  contents: read
+  id-token: write
+
+jobs:
+  sync:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Authenticate to Google Cloud
+        uses: google-github-actions/auth@v2
+        with:
+          workload_identity_provider: projects/294264196664/locations/global/workloadIdentityPools/github-actions-pool/providers/github-provider
+          service_account: rugby-sheets-sync@positive-rush-496120-f7.iam.gserviceaccount.com
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
+      - name: Install dependencies
+        run: pip install -r requirements.txt
+
+      - name: Run Spond to Sheets sync
+        env:
+          SPOND_USERNAME: ${{ secrets.SPOND_USERNAME }}
+          SPOND_PASSWORD: ${{ secrets.SPOND_PASSWORD }}
+        run: python spond_pull.py
