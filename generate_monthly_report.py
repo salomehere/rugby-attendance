@@ -22,10 +22,11 @@ from reportlab.platypus import Paragraph, SimpleDocTemplate, Spacer, Table, Tabl
 GOOGLE_SHEET_ID = "1MLG6Xf9zGDx9orTGHG2Hk5wrynZKuZoxmdhSgeAXpVk"  # Rugby Club Attendance
 SCOPES = ["https://www.googleapis.com/auth/spreadsheets"]
 
-# Coaches - excluded from the player attendance breakdown. Use real names as
-# they appear in Spond/the Sheet, not dashboard nicknames (e.g. "Goose" is
-# Angus Guthrie).
-COACHES = {"Angus Guthrie", "Lisa Newman"}
+# Non-players excluded from the attendance breakdown (coaches/managers).
+# These must match the exact "Member Name" string as it appears in the
+# Sheet (i.e. whatever name is registered in Spond), not a dashboard
+# nickname or real-life name.
+COACHES = {"Goose", "Lisa Newman", "Dolly Stanton"}
 
 
 def get_sheet_client():
