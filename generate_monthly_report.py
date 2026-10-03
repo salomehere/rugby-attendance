@@ -87,24 +87,28 @@ def fetch_month_attendance(start_date, end_date):
     return stats
 
 
-def pct_or_dash(accepted, total):
+def pct_or_none(accepted, total):
     if total == 0:
-        return "—"
-    return f"{round((accepted / total) * 100, 1)}%"
+        return None
+    return round((accepted / total) * 100, 1)
+
+
+def fmt_pct(pct):
+    return "—" if pct is None else f"{pct}%"
 
 
 def build_pdf(stats, month_label, out_path):
     rows = []
     for name, s in stats.items():
-        rows.append(
-            (
-                name,
-                pct_or_dash(s["Training"]["Accepted"], s["Training"]["Total"]),
-                pct_or_dash(s["Game"]["Accepted"], s["Game"]["Total"]),
-            )
-        )
+        train_pct = pct_or_none(s["Training"]["Accepted"], s["Training"]["Total"])
+        game_pct = pct_or_none(s["Game"]["Accepted"], s["Game"]["Total"])
+        rows.append((name, train_pct, game_pct))
 
-    rows.sort(key=lambda r: r[0])
+    # Highest to lowest, training % as the primary sort key. Players with no
+    # recorded events in a category (None) sort to the bottom of that key.
+    rows.sort(key=lambda r: (r[1] if r[1] is not None else -1, r[2] if r[2] is not None else -1), reverse=True)
+
+    rows = [(name, fmt_pct(train_pct), fmt_pct(game_pct)) for name, train_pct, game_pct in rows]
 
     styles = getSampleStyleSheet()
     doc = SimpleDocTemplate(out_path, pagesize=A4)
