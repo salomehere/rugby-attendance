@@ -1,7 +1,8 @@
 """
 Monthly Attendance Report — Rugby Club
-Builds a PDF summarizing each player's attendance % for the previous
-calendar month, reading from the same Google Sheet the daily sync writes to.
+Builds a PDF with each player's training attendance % and game attendance %
+for the previous calendar month, reading from the same Google Sheet the
+daily sync writes to. Coaches are excluded from the player breakdown.
 
 Auth: Application Default Credentials (see spond_pull.py for details — in
 GitHub Actions this is set up by the google-github-actions/auth step).
@@ -21,6 +22,11 @@ from reportlab.platypus import Paragraph, SimpleDocTemplate, Spacer, Table, Tabl
 GOOGLE_SHEET_ID = "1MLG6Xf9zGDx9orTGHG2Hk5wrynZKuZoxmdhSgeAXpVk"  # Rugby Club Attendance
 SCOPES = ["https://www.googleapis.com/auth/spreadsheets"]
 
+# Coaches - excluded from the player attendance breakdown. Use real names as
+# they appear in Spond/the Sheet, not dashboard nicknames (e.g. "Goose" is
+# Angus Guthrie).
+COACHES = {"Angus Guthrie", "Lisa Newman"}
+
 
 def get_sheet_client():
     creds, _ = google.auth.default(scopes=SCOPES)
@@ -39,6 +45,13 @@ def previous_month_range(today=None):
     )
 
 
+def classify_event(event_name):
+    name = (event_name or "").lower()
+    if "training" in name or "preseason" in name or "pre season" in name:
+        return "Training"
+    return "Game"
+
+
 def fetch_month_attendance(start_date, end_date):
     client = get_sheet_client()
     spreadsheet = client.open_by_key(GOOGLE_SHEET_ID)
@@ -46,7 +59,10 @@ def fetch_month_attendance(start_date, end_date):
     rows = ws.get_all_records()
 
     stats = defaultdict(
-        lambda: {"Accepted": 0, "Declined": 0, "No Response": 0, "Waiting List": 0, "Total": 0}
+        lambda: {
+            "Training": {"Accepted": 0, "Total": 0},
+            "Game": {"Accepted": 0, "Total": 0},
+        }
     )
 
     for row in rows:
@@ -56,22 +72,39 @@ def fetch_month_attendance(start_date, end_date):
             continue
         if not (start_date <= event_date <= end_date):
             continue
+
         name = row.get("Member Name", "Unknown")
+        if name in COACHES:
+            continue
+
+        category = classify_event(row.get("Event Name", ""))
         response = row.get("Response", "No Response")
-        stats[name]["Total"] += 1
-        if response in stats[name]:
-            stats[name][response] += 1
+
+        stats[name][category]["Total"] += 1
+        if response == "Accepted":
+            stats[name][category]["Accepted"] += 1
 
     return stats
+
+
+def pct_or_dash(accepted, total):
+    if total == 0:
+        return "—"
+    return f"{round((accepted / total) * 100, 1)}%"
 
 
 def build_pdf(stats, month_label, out_path):
     rows = []
     for name, s in stats.items():
-        pct = round((s["Accepted"] / s["Total"]) * 100, 1) if s["Total"] else 0.0
-        rows.append((name, s["Total"], s["Accepted"], s["Declined"], s["No Response"], s["Waiting List"], pct))
+        rows.append(
+            (
+                name,
+                pct_or_dash(s["Training"]["Accepted"], s["Training"]["Total"]),
+                pct_or_dash(s["Game"]["Accepted"], s["Game"]["Total"]),
+            )
+        )
 
-    rows.sort(key=lambda r: r[-1], reverse=True)
+    rows.sort(key=lambda r: r[0])
 
     styles = getSampleStyleSheet()
     doc = SimpleDocTemplate(out_path, pagesize=A4)
@@ -81,9 +114,9 @@ def build_pdf(stats, month_label, out_path):
         Spacer(1, 16),
     ]
 
-    table_data = [["Player", "Events", "Accepted", "Declined", "No Response", "Waiting List", "Attendance %"]]
+    table_data = [["Player", "Training Attendance %", "Game Attendance %"]]
     for r in rows:
-        table_data.append([r[0], r[1], r[2], r[3], r[4], r[5], f"{r[6]}%"])
+        table_data.append(list(r))
 
     table = Table(table_data, repeatRows=1)
     table.setStyle(
